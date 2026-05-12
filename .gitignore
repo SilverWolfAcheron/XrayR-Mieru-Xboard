@@ -1,0 +1,32 @@
+# 本地配置和密钥
+.env
+*.env
+*.key
+*.pem
+*.crt
+*.cer
+*.token
+config.yml
+config.yaml
+
+# 编译产物
+xrayr/build/
+build/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 日志和临时文件
+*.log
+*.tmp
+*.bak
+*.pid
+*.swp
+.DS_Store
+Thumbs.db
+
+# 编辑器目录
+.idea/
+.vscode/
