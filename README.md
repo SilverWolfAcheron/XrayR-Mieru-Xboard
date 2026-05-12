@@ -24,6 +24,7 @@ xrayr-mieru-xboard-open/
 - 上报节点状态、在线用户和用户流量。
 - Mieru 服务端支持 TCP CONNECT 和 UDP ASSOCIATE。
 - 兼容 FlClash/Mihomo 常见 Mieru 客户端，不强制 `user hint`。
+- 如果后续Flclash更新后我可能会将user hint强制
 
 ## 编译
 
@@ -100,23 +101,11 @@ ss -lntup | grep XrayR
 
 如果客户端 timeout，但 `tcpdump` 能看到客户端包到达服务端端口，通常不是防火墙问题，而是 Mieru 握手、用户名密码、传输方式或目标出口连接失败。当前版本会在 XrayR 日志里输出连接失败原因。
 
-## 开源发布检查
-
-发布到 GitHub 前建议执行：
-
-```bash
-rg -n "server_token|ApiKey|token|https://你的面板|你的密钥|你的服务器IP" .
-```
-
-不要提交：
-
-- 真实面板地址
-- `server_token`
-- 用户 UUID
-- 服务器 IP
-- 编译产物
-- 日志文件
 
 ## 许可证
 
 XrayR 原项目使用 Mozilla Public License 2.0。本仓库保留 MPL-2.0 许可证，详见 `LICENSE` 和 `NOTICE.md`。
+致谢原XrayR项目 尽管这已经被删库了
+
+## 新协议想要兼容的ISSUE提一下，我有时间就写
+
