@@ -1,6 +1,6 @@
 # XrayR Mieru for Xboard
 
-这是一个 XrayR 修改版，用于对接 Xboard UniProxy 的 `mieru` 节点。
+这是一个 XrayR 修改版，用于对接 Xboard UniProxy 的 `mieru` 节点。当然，XrayR原有功能也是有的
 
 仓库结构：
 
