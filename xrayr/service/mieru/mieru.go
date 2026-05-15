@@ -315,15 +315,30 @@ func (s *Service) acceptLoop(server mieruserver.Server) {
 				return
 			}
 			if isBenignAcceptError(err) {
-				s.logger.Debugf("Mieru accept ignored: %s", err)
-				time.Sleep(100 * time.Millisecond)
-				continue
+				s.logger.Warnf("Mieru accept pipe failed, rebuilding server: %s", err)
+				s.rebuildCurrentServer(server)
+				return
 			}
 			s.logger.Warnf("Mieru accept failed: %s", err)
 			time.Sleep(200 * time.Millisecond)
 			continue
 		}
 		go s.handleConn(conn, req)
+	}
+}
+
+func (s *Service) rebuildCurrentServer(failedServer mieruserver.Server) {
+	s.mu.RLock()
+	if s.server != failedServer || s.nodeInfo == nil || s.userList == nil {
+		s.mu.RUnlock()
+		return
+	}
+	nodeInfo := s.nodeInfo
+	users := s.userList
+	s.mu.RUnlock()
+
+	if err := s.rebuildServer(nodeInfo, users); err != nil {
+		s.logger.Warnf("Rebuild Mieru server after accept failure failed: %s", err)
 	}
 }
 
