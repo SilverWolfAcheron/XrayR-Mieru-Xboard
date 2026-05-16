@@ -20,7 +20,8 @@ SERVICE_NAME="XrayR"
 NODE_TYPE="Mieru"
 UPDATE_PERIODIC="${UPDATE_PERIODIC:-60}"
 XRAYR_BIN="${XRAYR_BIN:-}"
-XRAYR_UPDATE_URL="${XRAYR_UPDATE_URL:-https://github.com/SilverWolfAcheron/XrayR-Mieru-Xboard/releases/download/Update/XrayR-mieru-linux-amd64}"
+XRAYR_UPDATE_URL="${XRAYR_UPDATE_URL:-https://github.com/SilverWolfAcheron/XrayR-Mieru-Xboard/releases/latest/download/XrayR-mieru-linux-amd64}"
+XRAYR_UPDATE_FALLBACK_URL="${XRAYR_UPDATE_FALLBACK_URL:-https://github.com/SilverWolfAcheron/XrayR-Mieru-Xboard/releases/download/Update/XrayR-mieru-linux-amd64}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -145,6 +146,20 @@ download_file() {
     return
   fi
   fail "未找到 curl 或 wget，无法下载更新。"
+}
+
+download_update_binary() {
+  local dst="$1"
+  info "下载更新：${XRAYR_UPDATE_URL}"
+  if download_file "$XRAYR_UPDATE_URL" "$dst"; then
+    return
+  fi
+  if [ -n "${XRAYR_UPDATE_FALLBACK_URL:-}" ] && [ "$XRAYR_UPDATE_FALLBACK_URL" != "$XRAYR_UPDATE_URL" ]; then
+    warn "默认更新地址下载失败，尝试备用地址：${XRAYR_UPDATE_FALLBACK_URL}"
+    download_file "$XRAYR_UPDATE_FALLBACK_URL" "$dst"
+    return
+  fi
+  return 1
 }
 
 remove_symlink_if_target() {
@@ -315,8 +330,7 @@ update_binary() {
   tmp="$(mktemp /tmp/XrayR-mieru-linux-amd64.XXXXXX)"
   trap 'rm -f "$tmp"' EXIT
 
-  info "下载更新：${XRAYR_UPDATE_URL}"
-  download_file "$XRAYR_UPDATE_URL" "$tmp"
+  download_update_binary "$tmp"
   chmod 755 "$tmp"
 
   mkdir -p "$INSTALL_DIR"
@@ -452,6 +466,7 @@ usage() {
 也可以用环境变量指定：
   XRAYR_BIN=/root/XrayR-mieru-linux-amd64 bash install_xrayr_mieru_from_root.sh install
   XRAYR_UPDATE_URL=https://example.com/XrayR bash install_xrayr_mieru_from_root.sh update
+  XRAYR_UPDATE_FALLBACK_URL=https://example.com/XrayR.bak bash install_xrayr_mieru_from_root.sh update
 EOF
 }
 

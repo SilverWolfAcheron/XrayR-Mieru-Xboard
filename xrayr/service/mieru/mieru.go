@@ -419,16 +419,25 @@ func (s *Service) handleTCPConnect(conn net.Conn, req *mierumodel.Request, user 
 	done := make(chan struct{}, 2)
 	go func() {
 		_, _ = io.Copy(countingWriter{writer: remote, counter: &user.up}, conn)
+		closeWrite(remote)
 		done <- struct{}{}
 	}()
 	go func() {
 		_, _ = io.Copy(countingWriter{writer: conn, counter: &user.down}, remote)
+		closeWrite(conn)
 		done <- struct{}{}
 	}()
 	<-done
-	_ = conn.Close()
-	_ = remote.Close()
 	<-done
+}
+
+func closeWrite(conn net.Conn) {
+	type closeWriter interface {
+		CloseWrite() error
+	}
+	if cw, ok := conn.(closeWriter); ok {
+		_ = cw.CloseWrite()
+	}
 }
 
 func writeSocks5Response(conn net.Conn, reply byte, bind mierumodel.AddrSpec) error {
