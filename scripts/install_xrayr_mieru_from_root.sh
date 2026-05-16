@@ -20,6 +20,7 @@ SERVICE_NAME="XrayR"
 NODE_TYPE="Mieru"
 UPDATE_PERIODIC="${UPDATE_PERIODIC:-60}"
 XRAYR_BIN="${XRAYR_BIN:-}"
+XRAYR_UPDATE_URL="${XRAYR_UPDATE_URL:-https://github.com/SilverWolfAcheron/XrayR-Mieru-Xboard/releases/download/Update/XrayR-mieru-linux-amd64}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -131,6 +132,19 @@ install_binary() {
   info "安装 XrayR 二进制：$src"
   mkdir -p "$INSTALL_DIR" "$CONFIG_DIR"
   install -m 755 "$src" "${INSTALL_DIR}/XrayR"
+}
+
+download_file() {
+  local url="$1" dst="$2"
+  if command -v curl >/dev/null 2>&1; then
+    curl -L --fail --retry 3 --connect-timeout 15 -o "$dst" "$url"
+    return
+  fi
+  if command -v wget >/dev/null 2>&1; then
+    wget -O "$dst" "$url"
+    return
+  fi
+  fail "未找到 curl 或 wget，无法下载更新。"
 }
 
 remove_symlink_if_target() {
@@ -291,6 +305,36 @@ restart_service() {
   systemctl status "$SERVICE_NAME" --no-pager -l || true
 }
 
+update_binary() {
+  require_root
+  require_systemd
+  [ -f "$SERVICE_FILE" ] || fail "XrayR systemd 服务不存在，请先 install。"
+
+  title "Update XrayR Mieru"
+  local tmp backup
+  tmp="$(mktemp /tmp/XrayR-mieru-linux-amd64.XXXXXX)"
+  trap 'rm -f "$tmp"' EXIT
+
+  info "下载更新：${XRAYR_UPDATE_URL}"
+  download_file "$XRAYR_UPDATE_URL" "$tmp"
+  chmod 755 "$tmp"
+
+  mkdir -p "$INSTALL_DIR"
+  if [ -f "${INSTALL_DIR}/XrayR" ]; then
+    backup="${INSTALL_DIR}/XrayR.bak.$(date +%Y%m%d%H%M%S)"
+    cp -a "${INSTALL_DIR}/XrayR" "$backup"
+    info "已备份旧二进制：${backup}"
+  fi
+
+  info "替换 XrayR 二进制并重启服务。"
+  systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+  install -m 755 "$tmp" "${INSTALL_DIR}/XrayR"
+  systemctl daemon-reload
+  systemctl start "$SERVICE_NAME"
+  sleep 2
+  systemctl status "$SERVICE_NAME" --no-pager -l || true
+}
+
 uninstall_service() {
   require_root
   require_systemd
@@ -352,14 +396,51 @@ uninstall_service() {
   info "卸载完成。"
 }
 
+main_menu() {
+  while true; do
+    title "XrayR Mieru Tool"
+    cat <<EOF
+1) Install / Reconfigure
+2) Update binary from release
+3) Status
+4) Recent logs
+5) Follow logs
+6) Restart service
+7) Show config
+8) Uninstall
+0) Exit
+EOF
+    local choice
+    read -r -p "Select an option [0-8]: " choice
+    case "$choice" in
+      1) install_or_reconfigure ;;
+      2) update_binary ;;
+      3) show_status ;;
+      4) show_logs ;;
+      5) follow_logs ;;
+      6) restart_service ;;
+      7) show_config ;;
+      8) uninstall_service ;;
+      0|q|Q|exit) return ;;
+      *) warn "Invalid option: ${choice}" ;;
+    esac
+
+    echo
+    read -r -p "Press Enter to return to menu..." _
+  done
+}
+
 usage() {
   cat <<EOF
 用法：
+  bash install_xrayr_mieru_from_root.sh             打开交互菜单
+  bash install_xrayr_mieru_from_root.sh menu        打开交互菜单
   bash install_xrayr_mieru_from_root.sh install     安装或重装
   bash install_xrayr_mieru_from_root.sh status      查看状态
   bash install_xrayr_mieru_from_root.sh logs        查看最近日志
   bash install_xrayr_mieru_from_root.sh follow      实时跟踪日志
   bash install_xrayr_mieru_from_root.sh restart     重启服务
+  bash install_xrayr_mieru_from_root.sh update      下载最新 XrayR 二进制并重启
   bash install_xrayr_mieru_from_root.sh config      查看配置（隐藏密钥）
   bash install_xrayr_mieru_from_root.sh uninstall   卸载
   bash install_xrayr_mieru_from_root.sh uninstall --keep-config   卸载但保留 /etc/XrayR
@@ -370,15 +451,18 @@ usage() {
 
 也可以用环境变量指定：
   XRAYR_BIN=/root/XrayR-mieru-linux-amd64 bash install_xrayr_mieru_from_root.sh install
+  XRAYR_UPDATE_URL=https://example.com/XrayR bash install_xrayr_mieru_from_root.sh update
 EOF
 }
 
-case "${1:-install}" in
+case "${1:-menu}" in
+  menu) main_menu ;;
   install|reinstall|configure) install_or_reconfigure ;;
   status) show_status ;;
   logs) show_logs ;;
   follow) follow_logs ;;
   restart) restart_service ;;
+  update) update_binary ;;
   config) show_config ;;
   uninstall) shift; uninstall_service "$@" ;;
   help|-h|--help) usage ;;

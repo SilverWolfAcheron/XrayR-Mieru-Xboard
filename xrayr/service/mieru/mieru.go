@@ -208,10 +208,14 @@ func (s *Service) rebuildServer(nodeInfo *api.NodeInfo, users *[]api.UserInfo) e
 
 	s.mu.Lock()
 	oldServer := s.server
+	if oldServer != nil {
+		s.server = nil
+	}
+	s.mu.Unlock()
+
 	if oldServer != nil && oldServer.IsRunning() {
 		_ = oldServer.Stop()
 	}
-	s.mu.Unlock()
 
 	if err := server.Start(); err != nil {
 		return err
