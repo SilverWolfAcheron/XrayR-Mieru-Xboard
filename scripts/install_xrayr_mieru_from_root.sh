@@ -327,13 +327,13 @@ update_binary() {
 
   title "Update XrayR Mieru"
   local tmp backup
-  tmp="$(mktemp /tmp/XrayR-mieru-linux-amd64.XXXXXX)"
-  trap 'rm -f "$tmp"' EXIT
+  mkdir -p "$INSTALL_DIR"
+  tmp="$(mktemp "${INSTALL_DIR}/.XrayR.update.XXXXXX")"
+  trap 'rm -f "${tmp:-}"' EXIT
 
   download_update_binary "$tmp"
   chmod 755 "$tmp"
 
-  mkdir -p "$INSTALL_DIR"
   if [ -f "${INSTALL_DIR}/XrayR" ]; then
     backup="${INSTALL_DIR}/XrayR.bak.$(date +%Y%m%d%H%M%S)"
     cp -a "${INSTALL_DIR}/XrayR" "$backup"

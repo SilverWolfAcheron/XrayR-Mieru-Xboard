@@ -307,6 +307,7 @@ func buildServer(nodeInfo *api.NodeInfo, users *[]api.UserInfo) (mieruserver.Ser
 
 func (s *Service) acceptLoop(server mieruserver.Server) {
 	defer s.wg.Done()
+	var benignStreak int
 	for {
 		conn, req, err := server.Accept()
 		if err != nil {
@@ -319,30 +320,21 @@ func (s *Service) acceptLoop(server mieruserver.Server) {
 				return
 			}
 			if isBenignAcceptError(err) {
-				s.logger.Warnf("Mieru accept pipe failed, rebuilding server: %s", err)
-				s.rebuildCurrentServer(server)
-				return
+				benignStreak++
+				backoff := min(time.Duration(benignStreak)*200*time.Millisecond, 5*time.Second)
+				if benignStreak == 1 || benignStreak%50 == 0 {
+					s.logger.Warnf("Mieru accept transient error (streak=%d): %s", benignStreak, err)
+				}
+				time.Sleep(backoff)
+				continue
 			}
+			benignStreak = 0
 			s.logger.Warnf("Mieru accept failed: %s", err)
 			time.Sleep(200 * time.Millisecond)
 			continue
 		}
+		benignStreak = 0
 		go s.handleConn(conn, req)
-	}
-}
-
-func (s *Service) rebuildCurrentServer(failedServer mieruserver.Server) {
-	s.mu.RLock()
-	if s.server != failedServer || s.nodeInfo == nil || s.userList == nil {
-		s.mu.RUnlock()
-		return
-	}
-	nodeInfo := s.nodeInfo
-	users := s.userList
-	s.mu.RUnlock()
-
-	if err := s.rebuildServer(nodeInfo, users); err != nil {
-		s.logger.Warnf("Rebuild Mieru server after accept failure failed: %s", err)
 	}
 }
 
